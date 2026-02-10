@@ -2,6 +2,7 @@ package com.curso.android.module3.amiibo.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.room.util.query
 import com.curso.android.module3.amiibo.data.local.entity.AmiiboEntity
 import com.curso.android.module3.amiibo.domain.error.AmiiboError
 import com.curso.android.module3.amiibo.domain.error.ErrorType
@@ -13,8 +14,19 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.stateIn
+
+import androidx.lifecycle.viewModelScope
 
 /**
  * ============================================================================
@@ -167,8 +179,35 @@ class AmiiboViewModel(
     private val _snackBarEvents = MutableSharedFlow<SnackBarEvent>()
     val snackBarEvents: SharedFlow<SnackBarEvent> = _snackBarEvents.asSharedFlow()
 
-    //representa un evento de snackbar
+    //busqueda
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
+
+    fun onSearchQueryChange(text:String){
+        _searchQuery.value = text
+    }
+
+    fun clearSearch(){
+        _searchQuery.value=""
+    }
+
+    //cuando esto vacia la busqueda muestra todos y cuando si se esta buscano si los filtra
+    val amiibos: StateFlow<List<AmiiboEntity>> = searchQuery
+        .debounce(250)
+        .distinctUntilChanged()
+        .flatMapLatest {query->
+            val q = query.trim()
+            if(q.isBlank()){
+                repository.observeAmiibos()
+            }else
+                repository.searchAmiibos(q)
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList()
+        )
 
     /**
      * Estado público inmutable para la UI.
