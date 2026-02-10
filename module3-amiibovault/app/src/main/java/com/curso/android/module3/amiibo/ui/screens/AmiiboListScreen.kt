@@ -41,6 +41,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -74,6 +78,8 @@ import com.curso.android.module3.amiibo.domain.error.ErrorType
 import com.curso.android.module3.amiibo.ui.viewmodel.AmiiboUiState
 import com.curso.android.module3.amiibo.ui.viewmodel.AmiiboViewModel
 import org.koin.androidx.compose.koinViewModel
+
+
 
 /**
  * ============================================================================
@@ -143,10 +149,28 @@ fun AmiiboListScreen(
     val isLoadingMore by viewModel.isLoadingMore.collectAsStateWithLifecycle()
     val paginationError by viewModel.paginationError.collectAsStateWithLifecycle()
 
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(Unit) {
+        viewModel.snackBarEvents.collect { event ->
+            val result = snackbarHostState.showSnackbar(
+                message = event.message,
+                actionLabel = event.actionLabel,
+                withDismissAction = true,
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                viewModel.refreshAmiibos()
+            }
+        }
+    }
+
     // Estado para el dropdown del tamaño de página
     var showPageSizeDropdown by remember { mutableStateOf(false) }
 
     Scaffold(
+        snackbarHost = {
+            SnackbarHost(snackbarHostState)
+        },
         topBar = {
             /**
              * TopAppBar de Material 3.
@@ -304,17 +328,20 @@ fun AmiiboListScreen(
              * - Solo ve "Reintentar" cuando tiene sentido
              */
             is AmiiboUiState.Error -> {
-                if (state.cachedAmiibos.isNotEmpty()) {
-                    // Hay datos en cache: mostrar datos + mensaje de error
-                    Column(modifier = Modifier.padding(paddingValues)) {
-                        ErrorBanner(
-                            message = state.message,
-                            errorType = state.errorType,
-                            isRetryable = state.isRetryable,
-                            onRetry = { viewModel.refreshAmiibos() }
-                        )
+                // Hay datos en cache: mostrar datos + mensaje de error
+                //Column(modifier = Modifier.padding(paddingValues)) {
+                //disparar el snackBar
+
+//                        ErrorBanner(
+//                            message = state.message,
+//                            errorType = state.errorType,
+//                            isRetryable = state.isRetryable,
+//                            onRetry = { viewModel.refreshAmiibos() }
+//                        )
+                if (!state.cachedAmiibos.isNullOrEmpty()) {
+                    Column(modifier = Modifier.padding(paddingValues)){
                         AmiiboGrid(
-                            amiibos = state.cachedAmiibos,
+                            amiibos = state.cachedAmiibos.orEmpty(),
                             onAmiiboClick = onAmiiboClick,
                             hasMorePages = false,
                             isLoadingMore = false,
@@ -324,6 +351,10 @@ fun AmiiboListScreen(
                             modifier = Modifier.fillMaxSize()
                         )
                     }
+
+                    //}
+
+                    //}
                 } else {
                     // Sin cache: pantalla de error completa
                     ErrorContent(

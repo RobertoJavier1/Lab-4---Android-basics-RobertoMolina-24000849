@@ -112,14 +112,7 @@ sealed interface AmiiboUiState {
 }
 
 //Se usa SharedFlow porque es un evento no un estado persistente (one-shot events)
-private val _snackBarEvents = MutableSharedFlow<SnackBarEvent>()
-val snackBarEvents: SharedFlow<SnackBarEvent> = _snackBarEvents.asSharedFlow()
 
-//representa un evento de snackbar
-data class SnackBarEvent(
-    val message: String,
-    val actionLabel: String? = null
-)
 /**
  * ============================================================================
  * AMIIBO VIEWMODEL - Lógica de Presentación
@@ -164,6 +157,18 @@ class AmiiboViewModel(
      * Solo el ViewModel puede modificar este estado.
      */
     private val _uiState = MutableStateFlow<AmiiboUiState>(AmiiboUiState.Loading)
+
+    //SnackBar
+    data class SnackBarEvent(
+        val message: String,
+        val actionLabel: String? = null
+    )
+
+    private val _snackBarEvents = MutableSharedFlow<SnackBarEvent>()
+    val snackBarEvents: SharedFlow<SnackBarEvent> = _snackBarEvents.asSharedFlow()
+
+    //representa un evento de snackbar
+
 
     /**
      * Estado público inmutable para la UI.
@@ -256,7 +261,7 @@ class AmiiboViewModel(
         // Observar cambios en la base de datos
         observeDatabaseChanges()
         // Cargar datos iniciales
-        refreshAmiibos()
+        //refreshAmiibos()
     }
 
     /**
@@ -273,6 +278,14 @@ class AmiiboViewModel(
                 // Solo actualiza a Success si hay datos o no estamos en Loading inicial
                 val currentState = _uiState.value
                 if (amiibos.isNotEmpty()) {
+
+                    if(_loadedAmiibos.value.isEmpty()){
+                        val firstPage = amiibos.take(_pageSize.value)
+                        _loadedAmiibos.value = firstPage
+                        _hasMorePages.value = amiibos.size > firstPage.size
+                    }
+
+
                     _uiState.value = AmiiboUiState.Success(
                         amiibos = amiibos,
                         isRefreshing = currentState is AmiiboUiState.Success &&
@@ -471,10 +484,16 @@ class AmiiboViewModel(
                 //si hay cache y es network no error screen completa
                 if(e is AmiiboError.Network && cachedAmiibos.isNotEmpty()){
                     //mantener el grid y solo usar Snackbar
-                    _uiState.value = AmiiboUiState.Success(
-                        amiibos = cachedAmiibos,
-                        isRefreshing = false
+                    _snackBarEvents.emit(
+                        SnackBarEvent(
+                            message=e.message,
+                            actionLabel =
+                                if(isRetryable)
+                                    "Reintentar"
+                                else null
+                            )
                     )
+
                 }
 
                 //error normal
