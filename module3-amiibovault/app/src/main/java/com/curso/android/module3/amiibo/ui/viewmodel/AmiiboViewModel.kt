@@ -6,9 +6,12 @@ import com.curso.android.module3.amiibo.data.local.entity.AmiiboEntity
 import com.curso.android.module3.amiibo.domain.error.AmiiboError
 import com.curso.android.module3.amiibo.domain.error.ErrorType
 import com.curso.android.module3.amiibo.repository.AmiiboRepository
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -104,10 +107,19 @@ sealed interface AmiiboUiState {
         val message: String,
         val errorType: ErrorType = ErrorType.UNKNOWN,
         val isRetryable: Boolean = true,
-        val cachedAmiibos: List<AmiiboEntity> = emptyList()
+        val cachedAmiibos: List<AmiiboEntity>? = null
     ) : AmiiboUiState
 }
 
+//Se usa SharedFlow porque es un evento no un estado persistente (one-shot events)
+private val _snackBarEvents = MutableSharedFlow<SnackBarEvent>()
+val snackBarEvents: SharedFlow<SnackBarEvent> = _snackBarEvents.asSharedFlow()
+
+//representa un evento de snackbar
+data class SnackBarEvent(
+    val message: String,
+    val actionLabel: String? = null
+)
 /**
  * ============================================================================
  * AMIIBO VIEWMODEL - Lógica de Presentación
@@ -456,12 +468,23 @@ class AmiiboViewModel(
                     is AmiiboError.Unknown -> true   // Vale la pena reintentar
                 }
 
+                //si hay cache y es network no error screen completa
+                if(e is AmiiboError.Network && cachedAmiibos.isNotEmpty()){
+                    //mantener el grid y solo usar Snackbar
+                    _uiState.value = AmiiboUiState.Success(
+                        amiibos = cachedAmiibos,
+                        isRefreshing = false
+                    )
+                }
+
+                //error normal
                 _uiState.value = AmiiboUiState.Error(
                     message = e.message,
                     errorType = errorType,
                     isRetryable = isRetryable,
                     cachedAmiibos = cachedAmiibos
                 )
+
             } catch (e: Exception) {
                 // Catch-all para errores no tipados (no debería llegar aquí)
                 val cachedAmiibos = _loadedAmiibos.value
