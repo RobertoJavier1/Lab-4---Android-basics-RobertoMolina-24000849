@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.first
 
 /**
  * ============================================================================
@@ -297,10 +298,9 @@ class AmiiboViewModel(
      * Aquí configuramos la observación de datos y cargamos inicialmente.
      */
     init {
-        // Observar cambios en la base de datos
         observeDatabaseChanges()
-        // Cargar datos iniciales
-        //refreshAmiibos()
+        refreshAmiibos()
+
     }
 
     /**
@@ -311,6 +311,7 @@ class AmiiboViewModel(
      * Configura la observación reactiva del Flow de Room.
      * Cada vez que los datos cambian, actualiza el UiState.
      */
+
     private fun observeDatabaseChanges() {
         viewModelScope.launch {
             amiibosFromDb.collect { amiibos ->
@@ -469,6 +470,8 @@ class AmiiboViewModel(
         viewModelScope.launch {
             // Determinar estado durante la carga
             val currentAmiibos = _loadedAmiibos.value
+//            val currentAmiibos = amiibosFromDb.value
+
             if (currentAmiibos.isEmpty()) {
                 // No hay cache, mostrar loading
                 _uiState.value = AmiiboUiState.Loading
@@ -487,6 +490,7 @@ class AmiiboViewModel(
                 // Reiniciar paginación y cargar primera página
                 resetPagination()
                 val firstPageItems = repository.getAmiibosPage(0, _pageSize.value)
+
                 _loadedAmiibos.value = firstPageItems
                 _hasMorePages.value = repository.hasMorePages(0, _pageSize.value)
 
@@ -510,6 +514,10 @@ class AmiiboViewModel(
                  * - Si es local (Database) → reiniciar app o liberar espacio
                  */
                 val cachedAmiibos = _loadedAmiibos.value
+//                val cachedAmiibos = amiibosFromDb.value
+
+
+
                 val errorType = ErrorType.from(e)
 
                 // Determinar si el error es recuperable con un reintento
@@ -530,10 +538,17 @@ class AmiiboViewModel(
                                 if(isRetryable)
                                     "Reintentar"
                                 else null
-                            )
+                        )
                     )
 
+                    _uiState.value = AmiiboUiState.Success(
+                        amiibos = cachedAmiibos,
+                        isRefreshing = false
+                    )
+                    return@launch
+
                 }
+
 
                 //error normal
                 _uiState.value = AmiiboUiState.Error(

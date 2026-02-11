@@ -297,7 +297,8 @@ fun AmiiboListScreen(
                 // Estado de carga inicial
                 is AmiiboUiState.Loading -> {
                     LoadingContent(
-                        modifier = Modifier.padding(paddingValues)
+//                        modifier = Modifier.padding(paddingValues)
+                        modifier = Modifier.fillMaxSize()
                     )
                 }
 
@@ -337,7 +338,8 @@ fun AmiiboListScreen(
                     PullToRefreshBox(
                         isRefreshing = state.isRefreshing,
                         onRefresh = { viewModel.refreshAmiibos() },
-                        modifier = Modifier.padding(paddingValues)
+//                        modifier = Modifier.padding(paddingValues)
+                        modifier = Modifier.fillMaxSize()
                     ) {
                         // Grid de Amiibos con paginación
                         AmiiboGrid(
@@ -402,7 +404,8 @@ fun AmiiboListScreen(
                             errorType = state.errorType,
                             isRetryable = state.isRetryable,
                             onRetry = { viewModel.refreshAmiibos() },
-                            modifier = Modifier.padding(paddingValues)
+//                            modifier = Modifier.padding(paddingValues)
+                            modifier = Modifier.fillMaxSize()
                         )
                     }
                 }
@@ -677,7 +680,7 @@ private fun AmiiboGrid(
         columns = GridCells.Fixed(2),
         modifier = modifier,
         state = gridState,
-        contentPadding = PaddingValues(12.dp),
+        contentPadding = PaddingValues(    start = 12.dp, end = 12.dp, bottom = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {

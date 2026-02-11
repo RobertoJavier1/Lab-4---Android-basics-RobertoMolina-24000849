@@ -62,7 +62,7 @@ interface AmiiboDao {
     fun getAllAmiibos(): Flow<List<AmiiboEntity>>
 
     @Query(
-        "SELECT * FROM amiibos WHERE name like '%' || :query || '%' COLLATE NOCASE ORDER BY name ASC"
+        "SELECT * FROM amiibos WHERE name LIKE '%' || :query || '%' COLLATE NOCASE ORDER BY name ASC"
     )
     fun searchAmiibos(query: String): Flow<List<AmiiboEntity>>
 
